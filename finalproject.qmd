@@ -21,6 +21,9 @@ library(tidyverse) # functions for data manipulation
 
 Describe background and goal of analysis...
 
+- why we are doing it
+- scenario (foraging for mushrooms, what is the probability the mushroom you picked up is poisonous)
+
 # Load Data
 
 ```{r}
@@ -61,12 +64,17 @@ Brief description of models chosen and why, they will be combined into ensemble 
 ```
 
 ## Model 3: Support Vector Machine
+- logistic and trees produce probabilities, SVM doesn't
+- can make SVM into a probability using plat score (??) or something
+- just need to be careful if ensembling because not all the same scale
 
 ```{r}
 # model 3 code here
 ```
 
 ## Model 4: Ensemble
+
+- can also discuss maybe only need one model versus ensemble
 
 ```{r}
 # model 4 code here
@@ -75,6 +83,8 @@ Brief description of models chosen and why, they will be combined into ensemble 
 # Model Evaluation
 
 Evaluate models here...
+
+misclassification analysis
 
 # Discussion
 
