@@ -24,10 +24,10 @@ Describe background and goal of analysis...
 # Load Data
 
 ```{r}
-#df = read_csv("mushroom_cleaned.csv", col_names = TRUE)
+df = read_csv("mushroom_cleaned.csv", col_names = TRUE)
 ```
 ```{r}
-#head(df)
+head(df)
 ```
 
 # Data Description
@@ -37,6 +37,8 @@ List columns here and their descriptions (sourced from UCI website)...
 # Data Cleaning
 
 Explanation here...
+
+I think the Kaggle page already went through some data cleaning so we can talk about that here and then see if we need to do any additional cleaning in addition to that.
 
 ```{r}
 # data cleaning code here
