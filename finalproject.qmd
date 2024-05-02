@@ -1,0 +1,87 @@
+---
+title: "SYS 6018: Data Mining Final Project" 
+author: "Lea Jih-Vieira, Mitch Whalen"
+format: sys6018hw-html
+---
+
+```{r config, include=FALSE}
+# Set global configurations and settings here
+knitr::opts_chunk$set()                 # set global chunk options
+ggplot2::theme_set(ggplot2::theme_bw()) # set ggplot2 theme
+```
+
+# Required R packages {.unnumbered .unlisted}
+
+```{r packages, message=FALSE, warning=FALSE}
+library(tidyverse) # functions for data manipulation  
+# add additional libraries here
+```
+
+# Introduction
+
+Describe background and goal of analysis...
+
+# Load Data
+
+```{r}
+#df = read_csv("mushroom_cleaned.csv", col_names = TRUE)
+```
+```{r}
+#head(df)
+```
+
+# Data Description
+
+List columns here and their descriptions (sourced from UCI website)...
+
+# Data Cleaning
+
+Explanation here...
+
+```{r}
+# data cleaning code here
+```
+
+# Model Development
+
+Brief description of models chosen and why, they will be combined into ensemble and see how that compares...
+
+## Model 1: Logistic Regression
+
+```{r}
+# model 1 code here
+```
+
+## Model 2: Tree-Based Method
+
+```{r}
+# model 2 code here
+```
+
+## Model 3: Support Vector Machine
+
+```{r}
+# model 3 code here
+```
+
+## Model 4: Ensemble
+
+```{r}
+# model 4 code here
+```
+
+# Model Evaluation
+
+Evaluate models here...
+
+# Discussion
+
+Discuss results here (maybe can be combined with Model Evaluation)...
+
+# Conclusion
+
+Conclusions here...
+
+# Limitations
+
+Maybe talk about limitations?? here...
