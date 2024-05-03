@@ -35,7 +35,17 @@ head(df)
 
 # Data Description
 
-List columns here and their descriptions (sourced from UCI website)...
+```{r}
+# View the structure of the data
+str(df)
+```
+Our data set has 54,035 instances of 9 variables (Cap diameter, cap shape, gill attachment, gill color, stem height, stem width, stem color, season, and class). Class is our response variable where 0 refers to edible and 1 refers to poisonous.
+
+```{r}
+# Summary statistics
+summary(df)
+```
+Based on the summary statistics of our data, we can see that the class variable has a mean of 0.5492, thus the data set is relatively balanced. Cap diameter, stem height, and stem width are quantitative predictor variables. Whereas cap shape, gill attachment, gill color, stem color, and season are categorical predictor variables which will require treatment in data cleaning. 
 
 # Data Cleaning
 
