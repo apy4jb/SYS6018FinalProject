@@ -19,10 +19,9 @@ library(tidyverse) # functions for data manipulation
 
 # Introduction
 
-Describe background and goal of analysis...
+Many people enjoy mushroom foraging as a hobby and a lifestyle, hunting through woods to find ingredients for their next meal. However, foraging for mushrooms is not a casual activity by any means. Foraging requires vast knowledge of the wild mushrooms that grow in a given area and how to identify them ([Incredible Mushrooms](https://www.incrediblemushrooms.com/wild-mushroom-foraging.html)). It is imperative that a forager can tell the difference between an edible mushroom and a poisonous one, especially when the poisonous varieties can look almost identical to their edible counterparts ([Incredible Mushrooms](https://www.incrediblemushrooms.com/wild-mushroom-foraging.html)).
 
-- why we are doing it
-- scenario (foraging for mushrooms, what is the probability the mushroom you picked up is poisonous)
+This report aims to provide foragers a model-based method of determining the probability that a foraged mushroom is poisonous or not. To accomplish this, we will utilize a dataset of macromorphological mushroom characteristics that a forager could observe without the need for more advanced technologies. By providing a model-based method to determine the probability of mushroom toxicity using easily observable features, we hope to provide foragers a more reliable and accurate method to identify mushrooms.
 
 # Load Data
 
