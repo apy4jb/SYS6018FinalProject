@@ -14,7 +14,7 @@ ggplot2::theme_set(ggplot2::theme_bw()) # set ggplot2 theme
 
 ```{r packages, message=FALSE, warning=FALSE}
 library(tidyverse) # functions for data manipulation  
-# add additional libraries here
+library(ggplot2)
 ```
 
 # Introduction
@@ -25,9 +25,10 @@ This report aims to provide foragers a model-based method of determining the pro
 
 # Load Data
 
-```{r}
-df = read_csv("mushroom_cleaned.csv", col_names = TRUE)
+```{r, include = F}
+df = read_csv2("secondary_data.csv", col_names = TRUE)
 ```
+
 ```{r}
 head(df)
 ```
@@ -38,23 +39,106 @@ head(df)
 # View the structure of the data
 str(df)
 ```
-Our data set has 54,035 instances of 9 variables (Cap diameter, cap shape, gill attachment, gill color, stem height, stem width, stem color, season, and class). Class is our response variable where 0 refers to edible and 1 refers to poisonous.
+Our data set has 61,069 instances of 21 variables.
 
-```{r}
-# Summary statistics
-summary(df)
-```
-Based on the summary statistics of our data, we can see that the class variable has a mean of 0.5492, thus the data set is relatively balanced. Cap diameter, stem height, and stem width are quantitative predictor variables. Whereas cap shape, gill attachment, gill color, stem color, and season are categorical predictor variables which will require treatment in data cleaning. 
+*Response Variable:*
+**class**: Binary class divided in edible=e and poisonous=p (with the latter one also containing mushrooms of unknown edibility).
+
+*Predictor Variables:*
+**cap-diameter**: Diameter of the mushroom cap in centimeters (quantitative).
+**cap-shape**: Shape of the mushroom cap, categorized as bell, conical, convex, flat, sunken, spherical, or other (categorical).
+**cap-surface**: Surface texture of the mushroom cap, categorized as fibrous, grooves, scaly, smooth, shiny, leathery, silky, sticky, wrinkled, fleshy, or other (categorical).
+**cap-color**: Color of the mushroom cap, categorized as brown, buff, gray, green, pink, purple, red, white, yellow, blue, orange, black, or other (categorical).
+**does-bruise-bleed**: Indicates whether the mushroom bruises or bleeds when damaged, categorized as bruises or bleeding (yes) or no (no) (categorical).
+**gill-attachment**: Attachment of gills to the stem, categorized as adnate, adnexed, decurrent, free, sinuate, pores, none, or unknown (categorical).
+**gill-spacing**: Spacing between gills, categorized as close, distant, or none (categorical).
+**gill-color**: Color of the mushroom gills, similar to cap color, with additional category none (categorical).
+**stem-height**: Height of the mushroom stem in centimeters (quantitative).
+**stem-width**: Width of the mushroom stem in millimeters (quantitative).
+**stem-root**: Root structure of the mushroom stem, categorized as bulbous, swollen, club, cup, equal, rhizomorphs, rooted, or unknown (categorical).
+**stem-surface**: Surface texture of the mushroom stem, similar to cap surface, with additional category none (categorical).
+**stem-color**: Color of the mushroom stem, similar to cap color, with additional category none (categorical).
+**veil-type**: Type of veil covering the gills, categorized as partial or universal (categorical).
+**veil-color**: Color of the veil, similar to cap color, with additional category none (categorical).
+**has-ring**: Indicates whether the mushroom has a ring around the stem, categorized as ring (yes) or none (no) (categorical).
+**ring-type**: Type of ring around the stem, categorized as cobwebby, evanescent, flaring, grooved, large, pendant, sheathing, zone, scaly, movable, none, or unknown (categorical).
+**spore-print-color**: Color of the mushroom spore print, similar to cap color (categorical).
+**habitat**: Habitat where the mushroom grows, categorized as grasses, leaves, meadows, paths, heaths, urban, waste, or woods (categorical).
+**season**: Season in which the mushroom is typically found, categorized as spring, summer, autumn, or winter (categorical).
+
 
 # Data Cleaning
 
-Explanation here...
 
-I think the Kaggle page already went through some data cleaning so we can talk about that here and then see if we need to do any additional cleaning in addition to that.
+## Missing Values
+
+To begin with the data cleaning we will examine the data set by checking for missing values
 
 ```{r}
-# data cleaning code here
+# Check for missing values
+colSums(is.na(df))
 ```
+
+Some of the columns (ex. stem-root) are missing a large percentage of values, so we will remove any columns that are missing more than 50% of the values for that variable
+
+```{r}
+# Threshold for removing columns with more than 50% missing values
+threshold <- nrow(df) * 0.33
+
+# Identify columns with missing values exceeding the threshold
+missing_cols <- colSums(is.na(df)) > threshold
+
+# Remove columns with more than 50% missing values
+cleaned_df <- df[, !missing_cols]
+
+colSums(is.na(cleaned_df))
+```
+For the remaining rows, given our abundance of data, we will just remove any rows that contain missing values. If we were to have a smaller dataset we may consider mode or predictive imputation to handle the missing values.
+
+```{r}
+# Remove rows with missing values
+cleaned_df <- na.omit(cleaned_df)
+
+colSums(is.na(cleaned_df))
+```
+## Quantitative Variables
+
+First, we must convert our quantitative variables to a numeric type
+
+```{r}
+# List of quantitative variable names
+quantitative_vars <- c("cap-diameter", "stem-height", "stem-width")
+# Add all the quantitative variable names you want to convert to this list
+
+# Loop through each variable name and convert it to numeric
+for (var in quantitative_vars) {
+  cleaned_df[[var]] <- as.numeric(cleaned_df[[var]])
+}
+
+# Check the structure of your dataframe after conversion
+str(cleaned_df)
+```
+
+Now we will visualize our 3 quantitative predictors to check for skewness, outliers, and other elements which could affect our ability to construct accurate models.
+
+```{r}
+# Histogram for "cap-diameter"
+ggplot(cleaned_df, aes(x = `cap-diameter`)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  labs(x = "Cap Diameter", y = "Frequency", title = "Histogram of Cap Diameter")
+
+# Histogram for "stem-height"
+ggplot(cleaned_df, aes(x = `stem-height`)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  labs(x = "Stem Height", y = "Frequency", title = "Histogram of Stem Height")
+
+# Histogram for "stem-width"
+ggplot(cleaned_df, aes(x = `stem-width`)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  labs(x = "Stem Width", y = "Frequency", title = "Histogram of Stem Width")
+```
+
+
 
 # Model Development
 
