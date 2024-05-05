@@ -15,6 +15,7 @@ ggplot2::theme_set(ggplot2::theme_bw()) # set ggplot2 theme
 ```{r packages, message=FALSE, warning=FALSE}
 library(tidyverse) # functions for data manipulation  
 library(ggplot2)
+library(fastDummies)
 ```
 
 # Introduction
@@ -106,7 +107,7 @@ cleaned_df <- na.omit(cleaned_df)
 
 colSums(is.na(cleaned_df))
 ```
-## Quantitative Variables
+## Quantitative Predictors
 
 First, we must convert our quantitative variables to a numeric type
 
@@ -124,9 +125,9 @@ for (var in quantitative_vars) {
 str(cleaned_df)
 ```
 
-Now we will visualize our 3 quantitative predictors to check for skewness, outliers, and other elements which could affect our ability to construct accurate models.
+Now we will visualize our 3 quantitative predictors to check for skewness, outliers, and other elements which could affect our ability to construct useful models.
 
-```{r}
+```{r, echo=FALSE}
 # Histogram for "cap-diameter"
 ggplot(cleaned_df, aes(x = `cap-diameter`)) +
   geom_histogram(binwidth = 1, fill = "blue", color = "black") +
@@ -143,6 +144,53 @@ ggplot(cleaned_df, aes(x = `stem-width`)) +
   labs(x = "Stem Width", y = "Frequency", title = "Histogram of Stem Width")
 ```
 
+These histograms show a clear skew in the data and some outliers in the upper tail. For certain models like regression models this could be impactful and is worth considering.
+
+## Categorical Predictors
+
+We will now visualize our categorical variables.
+
+```{r, echo=FALSE}
+
+# Function to create and display a bar plot for each logical and character variable
+create_and_display_bar_plot <- function(df, var) {
+  for (v in var) {
+    if (is.logical(df[[v]]) || is.character(df[[v]])) {
+      # Count frequency of each category
+      freq_table <- table(df[[v]], useNA = "ifany")
+      
+      # Convert frequency table to dataframe
+      freq_df <- as.data.frame(freq_table)
+      names(freq_df) <- c("Category", "Frequency")
+      
+      # Create bar plot
+      plot <- ggplot(freq_df, aes(x = Category, y = Frequency, fill = Category)) +
+        geom_bar(stat = "identity") +
+        labs(x = v, y = "Frequency", title = paste("Bar Plot of", v)) +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+      
+      # Display plot
+      print(plot)
+    }
+  }
+}
+
+# Create and display bar plots for logical and character variables
+create_and_display_bar_plot(cleaned_df, names(cleaned_df))
+```
+Next, we need to create dummy variables for the categorical variables. We will use one-hot encoding, so we can incorporate them into our model
+
+```{r}
+# Get logical and character variable names
+logical_vars <- names(cleaned_df)[sapply(cleaned_df, is.logical)]
+character_vars <- names(cleaned_df)[sapply(cleaned_df, is.character)]
+
+# Perform one-hot encoding for logical and character variables
+encoded_df <- dummy_cols(cleaned_df, select_columns = c(logical_vars, character_vars), remove_first_dummy = TRUE, remove_selected_columns = TRUE)
+
+# Display the encoded dataframe
+head(encoded_df)
+```
 
 
 # Model Development
