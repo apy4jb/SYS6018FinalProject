@@ -178,6 +178,9 @@ create_and_display_bar_plot <- function(df, var) {
 # Create and display bar plots for logical and character variables
 create_and_display_bar_plot(cleaned_df, names(cleaned_df))
 ```
+
+One important note from these visualizations is that our class variable is roughly balanced, so we will not need to make adjustment for an imbalanced data set.
+
 Next, we need to create dummy variables for the categorical variables. We will use one-hot encoding, so we can incorporate them into our model
 
 ```{r}
