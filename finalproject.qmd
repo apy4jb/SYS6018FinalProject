@@ -17,6 +17,7 @@ library(tidyverse) # functions for data manipulation
 library(ggplot2)
 library(fastDummies)
 library(ranger)
+library(janitor)
 ```
 
 # Introduction
@@ -198,65 +199,132 @@ head(encoded_df)
 
 # Model Development
 
-Brief description of models chosen and why, they will be combined into ensemble and see how that compares...
+## Train/Test Split
+
+We will be implementing a 80/20 train/test split of the cleaned data. This will allow us to train the model on an adequate number of observations and also test our models on data it has not seen before.
+
+```{r}
+set.seed(2019)
+
+train.idx = sample(nrow(encoded_df), # sample row indices
+                   nrow(encoded_df)*0.8,# 80% of data
+                   replace = FALSE)
+
+Train = encoded_df[train.idx, ]
+Train = clean_names(Train) # changes all - to _ in column names
+Train$class_p = as.factor(Train$class_p)
+
+Test = encoded_df[-train.idx, ]
+Test = clean_names(Test) # changes all - to _ in column names
+Test$class_p = as.factor(Test$class_p)
+```
+
+We will be implementing three different classification models: logistic regression, random forest, and support vector machine (SVM). In addition to these three models, we will be implementing an ensemble using up to these three models to see if the ensemble possesses better predictive power than the individual models.
 
 ## Model 1: Logistic Regression
 
+We chose to use Logistic Regression as our first model because of its commonality to model relationships with binary dependent variables. Logistic Regression models are convenient because they are one of the easiest models to implement and train; however, they have more limitations and less flexibility compared to other classification models.
+
+As we modeled in the data cleaning section, the numeric features of this data are heavily skewed and contain considerable outliers. Because this model type can be influenced by the presence of outliers, we chose to log transform those variables to lessen the effects of the potential outliers. Since we have observations where these values equal zero, we have to add a small constant to the numeric data to ensure we do not get values of infinity while log-transforming.
+
 ```{r}
-# model 1 code here
+num.features = c("cap_diameter", "stem_height", "stem_width")
+
+Train.transformed = Train
+
+for (column in num.features) {
+  Train.transformed[ , column] = Train[ , column] + 2e-323 %>% log()
+}
 ```
 
-## Model 2: Tree-Based Method
-
-Explain why we choose this method (check tree notes), why we use the default parameters
-
-why we use RMSE to evaluate model (The square root rather than the square of the error is calculated, meaning that the units are the same as the target variable.)
+From here, we can fit a logistic regression model.
 
 ```{r}
-# model 2 code here
-set.seed(2020)
+fit_lr = glm(class_p ~ ., 
+             family= 'binomial', 
+             data= Train.transformed)
+```
 
-K = 10
-folds = sample(rep(1:K, length= nrow(encoded_df) ))
+Using our logistic regression model, we can plot the probability estimates for the test data to observe the nature of the probability predictions.
+```{r}
+p_hat= predict(fit_lr, Test, type= 'response') # response is the point estimate of the probability
+```
+```{r}
+hist(p_hat,
+     main="Probability Estimates of Mushroom Toxicity",
+     xlab="Probability Estimate",
+     ylab = "Frequency",
+     col="blue",
+     border="pink",
+     breaks = 30)
+```
+As we can see above, the model does not produce many "middle ground" probability estimates of mushroom toxicity. The estimates are either very close to zero or very close to one. Later in our model evaluation analysis, we will be able to see how effective this model is in predicting mushroom toxicity, especially in situations where the penalty of misclassification is high.
 
-test.RMSE = rep(NA, K)
 
-for (k in 1:K) {
-  # Indices of kth fold (the test set for this iteration)
-  idx = which(folds == k)
+
+## Model 2: Random Forest
+
+The second model we wanted to explore is a tree-based model. Tree-based models are a powerful model to use because of their flexibility; they naturally include feature interactions and reduce the need of features transformations while still producing an intuitive model. Since we are trying to model a binary categorical outcome, we will need a classification tree that will allow us to estimate the probability of each class.
+
+We chose to use a random forest model because it is generally known to be more robust to overfitting than its alternatives. The objective of this model is the minimize the loss function, which we will be using node impurity in our case. Node impurity refers to the probability for a random instance being misclassified when chosen randomly ([Towards Data Science](https://towardsdatascience.com/decision-trees-explained-entropy-information-gain-gini-index-ccp-pruning-4d78070db36c)). There are many metrics to measure node impurity, but we have chosen to use Gini Index in our model. Gini Index implements a soft approximation of the Misclassification Error impurity measure. This method is beneficial in situations where we want to prioritize accuracy, which is the case in our scenario. We want to be as accurate as possible in our mushroom toxicity predictions because even one mistake could be fatal to a forager.
+
+We decided to run an out-of-bag analysis of the random forest to assess performance and identify the optimal tuning parameters. The default values from the `ranger()` function uses `mtry = sqrt(p) =` `r sqrt(ncol(Train)-1) %>% floor()` and `min.bucket=1`. Given the size of our data, however, we are restricted in the number of analyses and values we can test before computing power becomes a limitation. We ultimately decided to test `mtry` values between 4 and 16, and `min.bucket` values between 1 and 8. To evaluate the performance of each model, we used the `prediction.error` attribute from the model; for classification models, it produces the accuracy value of the model. In other words, the proportion of misclassified observation are reported by the `prediction.error` attribute.
+
+```{r}
+#: grid for tuning
+tune_grid = expand_grid(
+  mtry = seq(4, 16, by = 2),
+  min.bucket = seq(1, 8, by = 2)
+)
+
+# OOB analysis
+ACCURACY = tibble()               # initiate results df
+for(i in 1:nrow(tune_grid)) {
+  mtry = tune_grid$mtry[i] # pull mtry value for this iteration
   
-  # Training Data
-  X.train= subset(encoded_df[-idx, ], select = -c(class_p))
-  Y.train = subset(encoded_df[-idx, ], select = c(class_p))$class_p
+  min.bucket = tune_grid$min.bucket[i] # pull min-bucket value for this iteration
   
-  # Testing Data
-  X.test= subset(encoded_df[idx, ], select = -c(class_p))
-  Y.test = subset(encoded_df[idx, ], select = c(class_p))$class_p
+  rf = ranger(class_p~ ., 
+              data = Train,
+              mtry = mtry, # changes each iteration
+              min.bucket = min.bucket, # changes each iteration
+              num.trees = 500, # default
+              splitrule = "gini", # gini index
+              seed = 2021) # ensure same bagging for all mtry
   
-  # Default mtry
-  m = sqrt( ncol(X.train) )
+  out = tibble(mtry, min.bucket,
+               accuracy = rf$prediction.error)
   
-  # Build Model
-  model = ranger(x = X.train, 
-                 y = Y.train, 
-                 min.bucket = 1, # Default min.obs for ranger()
-                 mtry = m) # Default mtry for ranger()
-  
-  # Predict
-  predictions = predict(model, X.test)$predictions
-  
-  # Calculate kth RMSE
-  rmse = sqrt( sum( (Y.test - predictions)^2 ) / length(Y.test) )
-  
-  # Append to results vector
-  test.RMSE[k] = rmse
+  ACCURACY = bind_rows(ACCURACY, out)
 }
 ```
 ```{r}
-mean(test.RMSE)
+#-- Aggregate Results
+ACCURACY_agg = ACCURACY %>% 
+  group_by(mtry, min.bucket) %>% 
+  summarize(n=n(), accuracy = accuracy, .groups="drop")
 ```
+```{r}
+#-- Plot Results
+ACCURACY_agg %>% 
+  mutate(min.bucket = factor(min.bucket)) %>% # make into factor for plotting
+  ggplot(aes(mtry, accuracy, color=min.bucket)) + 
+  geom_point() + geom_line()
+```
+Above we can see a visualization reporting the performance of each combination of `mtry` and `min.bucket` values run. This simulation has shown us that the default value `min.bucket = 1` and `mtry = 14` gives the best prediction for our data because it minimizes the prediction error the most.
 
-interpret RMSE (its a vlaue between 0 and 1)
+Finally, we can test our model on the test set using our optimal tuning parameters.
+```{r}
+final.rf = ranger(class_p~ ., 
+                  data = Train,
+                  mtry = 14, # optimal mtry
+                  min.bucket = 1, # optimal min.bucket
+                  num.trees = 500, # default
+                  splitrule = "gini", # gini index
+                  seed = 2021) # ensure same bagging for all mtry
+
+
+```
 
 
 ## Model 3: Support Vector Machine
