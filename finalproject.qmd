@@ -77,7 +77,6 @@ We can confirm there are no missing values in the dataset, thus we do not need t
 
 # Data Cleaning
 
-
 ## Missing Values
 
 To begin with the data cleaning we will examine the data set by checking for missing values
@@ -247,10 +246,10 @@ fit_lr = glm(class_p ~ .,
 
 Using our logistic regression model, we can plot the probability estimates for the test data to observe the nature of the probability predictions.
 ```{r}
-p_hat= predict(fit_lr, Test, type= 'response') # response is the point estimate of the probability
+lr.p_hat= predict(fit_lr, Test, type= 'response') # response is the point estimate of the probability
 ```
 ```{r}
-hist(p_hat,
+hist(lr.p_hat,
      main="Probability Estimates of Mushroom Toxicity",
      xlab="Probability Estimate",
      ylab = "Frequency",
@@ -258,9 +257,24 @@ hist(p_hat,
      border="pink",
      breaks = 30)
 ```
-As we can see above, the model does not produce many "middle ground" probability estimates of mushroom toxicity. The estimates are either very close to zero or very close to one. Later in our model evaluation analysis, we will be able to see how effective this model is in predicting mushroom toxicity, especially in situations where the penalty of misclassification is high.
+As we can see above, the model does not produce many "middle ground" probability estimates of mushroom toxicity. The estimates are either very close to zero or very close to one. It is notable that the model predicts a lot more nontoxic classifications as opposed to toxic. Later in our model evaluation analysis, we will be able to see how effective this model is in predicting mushroom toxicity, especially in situations where the penalty of misclassification is high.
 
+Finally, we can generate a preliminary accuracy score for this model using its hard classifications. Using a probability of 0.5 as our threshold (the guessing average), we can calculate the model's accuracy.
 
+```{r}
+lr.class = as.numeric(lr.p_hat > 0.5)
+
+TP = sum(lr.class == 1 & lr.class == Test$class_p)
+TN = sum(lr.class == 0 & lr.class == Test$class_p)
+
+FP = sum(lr.class == 1 & lr.class != Test$class_p)
+FN = sum(lr.class == 0 & lr.class != Test$class_p)
+
+lr.accuracy = (TP + TN) / (TP + TN + FP + FN)
+
+lr.accuracy
+```
+The model produces a preliminary accuracy of 0.47, which is a little lower than the guessing average of 0.5 for a binary classification problem. Further analysis will be conducted in the model evaluation section later in this report.
 
 ## Model 2: Random Forest
 
@@ -278,7 +292,7 @@ tune_grid = expand_grid(
 )
 
 # OOB analysis
-ACCURACY = tibble()               # initiate results df
+ACCURACY = tibble() # initiate results df
 for(i in 1:nrow(tune_grid)) {
   mtry = tune_grid$mtry[i] # pull mtry value for this iteration
   
@@ -321,11 +335,40 @@ final.rf = ranger(class_p~ .,
                   min.bucket = 1, # optimal min.bucket
                   num.trees = 500, # default
                   splitrule = "gini", # gini index
-                  seed = 2021) # ensure same bagging for all mtry
-
-
+                  seed = 2021, # ensure same bagging for all mtry
+                  probability = TRUE) # to get probability estimates as the prediction value
 ```
+```{r}
+rf.p_hat = predict(final.rf, Test, type = "response")
 
+rf.p_hat = rf.p_hat$predictions[, 2] # probability estimate of being toxic
+```
+```{r}
+hist(rf.p_hat,
+     main="Probability Estimates of Mushroom Toxicity",
+     xlab="Probability Estimate",
+     ylab = "Frequency",
+     col="blue",
+     border="pink",
+     breaks = 30)
+```
+As we can see above, the random forest model predicts relatively evenly between the two classes, with a few more "middle ground" probability estimates as compared to the logistic regression model.
+
+Finally, we can generate a preliminary accuracy score for this model using its hard classifications. Using a probability of 0.5 as our threshold, we can calculate the model's accuracy.
+```{r}
+rf.class = as.numeric(rf.p_hat > 0.5)
+
+TP = sum(rf.class == 1 & rf.class == Test$class_p)
+TN = sum(rf.class == 0 & rf.class == Test$class_p)
+
+FP = sum(rf.class == 1 & rf.class != Test$class_p)
+FN = sum(rf.class == 0 & rf.class != Test$class_p)
+
+rf.accuracy = (TP + TN) / (TP + TN + FP + FN)
+
+rf.accuracy
+```
+Using the test set, this model has an accuracy of 99.9%, which is an almost perfect accuracy score. 
 
 ## Model 3: Support Vector Machine
 - logistic and trees produce probabilities, SVM doesn't
@@ -346,13 +389,19 @@ final.rf = ranger(class_p~ .,
 
 # Model Evaluation
 
-Evaluate models here...
+Now that all four models have been built and optimized, we can conduct a more thorough evaluation of each model and how they compare to each other. This analysis will inform our our discussion and subsequent conclusions regarding the best method to classify mushrooms for foragers.
+
+## Accuracy
+
+
 
 misclassification analysis
 
 # Discussion
 
 Discuss results here (maybe can be combined with Model Evaluation)...
+
+Do you think a hard classification or probability/score is better for this scenario? probability is better
 
 # Conclusion
 
