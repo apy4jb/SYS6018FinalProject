@@ -16,6 +16,7 @@ ggplot2::theme_set(ggplot2::theme_bw()) # set ggplot2 theme
 library(tidyverse) # functions for data manipulation  
 library(ggplot2)
 library(fastDummies)
+library(ranger)
 ```
 
 # Introduction
@@ -195,7 +196,6 @@ encoded_df <- dummy_cols(cleaned_df, select_columns = c(logical_vars, character_
 head(encoded_df)
 ```
 
-
 # Model Development
 
 Brief description of models chosen and why, they will be combined into ensemble and see how that compares...
@@ -208,9 +208,56 @@ Brief description of models chosen and why, they will be combined into ensemble 
 
 ## Model 2: Tree-Based Method
 
+Explain why we choose this method (check tree notes), why we use the default parameters
+
+why we use RMSE to evaluate model (The square root rather than the square of the error is calculated, meaning that the units are the same as the target variable.)
+
 ```{r}
 # model 2 code here
+set.seed(2020)
+
+K = 10
+folds = sample(rep(1:K, length= nrow(encoded_df) ))
+
+test.RMSE = rep(NA, K)
+
+for (k in 1:K) {
+  # Indices of kth fold (the test set for this iteration)
+  idx = which(folds == k)
+  
+  # Training Data
+  X.train= subset(encoded_df[-idx, ], select = -c(class_p))
+  Y.train = subset(encoded_df[-idx, ], select = c(class_p))$class_p
+  
+  # Testing Data
+  X.test= subset(encoded_df[idx, ], select = -c(class_p))
+  Y.test = subset(encoded_df[idx, ], select = c(class_p))$class_p
+  
+  # Default mtry
+  m = sqrt( ncol(X.train) )
+  
+  # Build Model
+  model = ranger(x = X.train, 
+                 y = Y.train, 
+                 min.bucket = 1, # Default min.obs for ranger()
+                 mtry = m) # Default mtry for ranger()
+  
+  # Predict
+  predictions = predict(model, X.test)$predictions
+  
+  # Calculate kth RMSE
+  rmse = sqrt( sum( (Y.test - predictions)^2 ) / length(Y.test) )
+  
+  # Append to results vector
+  test.RMSE[k] = rmse
+}
 ```
+```{r}
+mean(test.RMSE)
+```
+
+interpret RMSE (its a vlaue between 0 and 1)
+
 
 ## Model 3: Support Vector Machine
 - logistic and trees produce probabilities, SVM doesn't
