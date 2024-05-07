@@ -501,7 +501,6 @@ accuracy.table = tibble(model = c("Logistic Regression",
 
 accuracy.table
 ```
-COMPARISON HERE
 
 While accuracy is a nice preliminary analysis of the model's performance due to its simplicity and efficiency, it is a poor metric to use for more meaningful evaluation of the models. Accuracy does not account for the fact that there are different costs that exist depending on the type of mistake made in a given scenario. In our example, the cost of misclassifying a toxic mushroom can lead to death, whereas the cost of misclassifying a nontoxic mushroom is much less. Additionally, accuracy is unable to consider the nuances between different probability estimations, as it classifies a probability of 0.55 and 0.99 the same, given our threshold is 0.5. For these reasons, we need a more robust method to evaluate the models.
 
@@ -590,6 +589,64 @@ rf.perf[which.min(rf.costs), ]
 min(rf.costs)
 ```
 At a threshold of 0.266, the cost is minimized at a value of 11 with 0 false negatives and 11 false positives. This performance is ideal, as it eliminates the costly false negatives and minimizes the number of false positives. In practice this performance is also ideal because there are no times that a toxic mushroom is incorrectly classified as nontoxic and accidentally ingested by a forager.
+
+*Support Vector Machine:*
+
+```{r}
+thresholds = seq(0, 1, length = 1000)
+svm.perf = perf_table(truth = Test$class_p, score = svm_probs, thres = thresholds)
+
+svm.costs = 1*svm.perf$FP + 10*svm.perf$FN
+
+min.idx = which.min(svm.costs)
+
+ggplot() +
+  geom_line(aes(x= svm.perf$threshold, y= svm.costs)) +
+  geom_vline(xintercept = 1 / (1 + 10), col = "purple") +
+  geom_point(aes(x=svm.perf$threshold[min.idx], 
+                 y= min(svm.costs)), colour="orange") +
+  labs(title = "Support Vector Machine: Cost of FP = 1 and FN = 10",
+       x = "threshold",
+       y = "Cost")
+```
+
+Above is the cost analysis of the SVM model. We can see in this plot the optimal estimated threshold is lower than the theoretical threshold. Given we have sufficient data for our model, the estimated threshold is preferred over the theoretical one.
+
+```{r}
+svm.perf[which.min(svm.costs), ]
+min(svm.costs)
+```
+
+At a threshold of 0.055, the cost is minimized at a value of 15 with 0 false negatives and 15 false positives. This performance is once again ideal, as there are no costly false negatives and the number of false positives is kept relatively low. Once again, this model ensures that a forager is not likely to take a risk on any poisonous mushrooms that could lead to adverse effects. Instead the only cost is the lost time from abandoning a potentially safe mushroom.
+
+*Ensemble:*
+
+```{r}
+thresholds = seq(0, 1, length = 1000)
+en.perf = perf_table(truth = Test$class_p, score = stacking_probs, thres = thresholds)
+
+en.costs = 1*en.perf$FP + 10*en.perf$FN
+
+min.idx = which.min(en.costs)
+
+ggplot() +
+  geom_line(aes(x= en.perf$threshold, y= en.costs)) +
+  geom_vline(xintercept = 1 / (1 + 10), col = "purple") +
+  geom_point(aes(x=en.perf$threshold[min.idx], 
+                 y= min(en.costs)), colour="orange") +
+  labs(title = "Ensemble: Cost of FP = 1 and FN = 10",
+       x = "threshold",
+       y = "Cost")
+```
+
+Above is the cost analysis of the ensemble model. Very similar to the SVM model, we can see in this plot the optimal estimated threshold is once again lower than the theoretical threshold. Given we have sufficient data for our model, the estimated threshold is preferred over the theoretical one.
+
+```{r}
+en.perf[which.min(en.costs), ]
+min(en.costs)
+```
+
+At a threshold of 0.053 for the ensemble model, the cost can be reduced all the way to a value of 2 with 0 false negatives and 2 false positives. This performance is the strongest yet with 0 of the potentially deadly false negatives and a mere 2 false positives. This shows that the ensemble model is using both of our stronger models (RF and SVM) to build a superior classification model. Granted, there is a risk of overfiting since the ensemble model was trained on the test data since we first had to fit the component models on the training data. But if we can assume that our test data is representative of mushroom population then the ensemble model is valuable.
 
 # Discussion
 
