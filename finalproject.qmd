@@ -393,9 +393,76 @@ Now that all four models have been built and optimized, we can conduct a more th
 
 ## Accuracy
 
+In the model development section, we conducted a preliminary analysis of the models using accuracy as the metric. We can now view all of the accuracies of the finalized models here.
+
+```{r}
+accuracy.table = tibble(model = c("Logistic Regression",
+                                  "Random Forest"#,
+                                  #"Support Vector Machine",
+                                  #"Ensemble"
+                                  ),
+                        accuracy = c(lr.accuracy,
+                                     rf.accuracy#,
+                                     #svm.accuracy,
+                                     #en.accuracy
+                                     ))
+
+accuracy.table
+```
+COMPARISON HERE
+
+While accuracy is a nice preliminary analysis of the model's performance due to its simplicity and efficiency, it is a poor metric to use for more meaningful evaluation of the models. Accuracy does not account for the fact that there are different costs that exist depending on the type of mistake made in a given scenario. In our example, the cost of misclassifying a toxic mushroom can lead to death, whereas the cost of misclassifying a nontoxic mushroom is much less. Additionally, accuracy is unable to consider the nuances between different probability estimatations, as it classifies a probability of 0.55 and 0.99 the same, given our threshold is 0.5. For these reasons, we need a more robust method to evaluate the models.
+
+## Cost
+
+Analyzing the models using cost as a metric can resolve many of the issues associated with using accuracy as a metric. The cost of a false positive versus the cost of a false negative are much different from each other when we consider the context of our scenario. A false positive would occur if a nontoxic mushroom is incorrectly classified as a toxic mushroom. A false negative would occur if a toxic mushroom is incorrectly classified as a nontoxic mushroom. Intuitively, the cost of a false positive would be much less than the cost of a false negative, as a false positive would lead to a forager refusing to eat a nontoxic mushroom and only incur the cost of wasted time foraging. A false negative, on the other hand, could result in a forager consuming a toxic mushroom and getting ill or even dying as a result. For these reasons, we decided to estimate the cost of a false positive as 1, and the cost of a false negative as 10.
+
+Using these estimated costs, we can conduct a misclassification analysis for each of the models and compare the results.
+
+```{r}
+# truth: {0,1} vector
+# score: risk score with larger values correspond to label = 1.
+# thres: vector of thresholds at which to calculate metric.
+# Note: decision is 1 if score > thres, 0 if score <= thres.
+perf_table <- function(truth, score, thres){
+  x = c(-Inf, thres, Inf) %>% unique() %>% sort() # expand and clean thresholds
+  tibble(truth, score) %>%
+    # create groups by threshold
+    mutate(
+      bin = findInterval(score, x, left.open = TRUE),
+      val = x[bin+1]
+    ) %>%
+    # counts by group/threshold
+    group_by(val) %>%
+    summarize(n = n(), n.1 = sum(truth), n.0 = n-n.1) %>%
+    ungroup() %>%
+    complete(val = thres, fill = list(n=0L, n.1=0L, n.0 = 0L)) %>%
+    
+    # calculate metrics
+    arrange(val) %>%
+    mutate(
+      TN = cumsum(n.0), # True negatives
+      FN = cumsum(n.1), # False negatives
+      TP = sum(n.1) - FN, # True positives
+      FP = sum(n.0) - TN, # False positives
+      TPR = TP/sum(n.1), # True positive rate (TP / Positives)
+      FPR = FP/sum(n.0) # False positive rate (FP / Negatives)
+    ) %>%
+    # drop values outside of stated thresholds
+    filter(val %in% thres) %>%
+    # retain relevant metrics
+    select(-n, -n.1, -n.0, score = val)
+}
+```
+```{r}
+thresholds = seq(0, 1, length = 1000)
+perf = perf_table(truth = as.numeric(Test$class_p), score = lr.p_hat, thres = thresholds) %>%
+  mutate(p_hat = score, gamma_hat = log(p_hat) - log(1-p_hat), .before=1) %>%
+  select(-score)
+```
 
 
-misclassification analysis
+
 
 # Discussion
 
