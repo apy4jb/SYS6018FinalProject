@@ -18,6 +18,8 @@ library(ggplot2)
 library(fastDummies)
 library(ranger)
 library(janitor)
+library(e1071)
+library(caret)
 ```
 
 # Introduction
@@ -371,20 +373,110 @@ rf.accuracy
 Using the test set, this model has an accuracy of 99.9%, which is an almost perfect accuracy score. 
 
 ## Model 3: Support Vector Machine
-- logistic and trees produce probabilities, SVM doesn't
-- can make SVM into a probability using plat score (??) or something
-- just need to be careful if ensembling because not all the same scale
+
+We normalized the predictors before building the SVM model to make sure all features had an equal impact. By putting them on the same scale, we avoided letting any one feature dominate the model. This helps the SVM make fair decisions and gives reliable results, which aligns with our goal of accurate predictions.
 
 ```{r}
-# model 3 code here
+# Identify quantitative variable names
+quantitative_vars <- c("cap_diameter", "stem_height", "stem_width")
+
+# Normalize quantitative variables in the training and test sets
+preprocess_method <- preProcess(Train[, quantitative_vars], method = c("range"))
+
+# Apply normalization to training set
+Train_normalized <- predict(preprocess_method, Train[, quantitative_vars])
+
+# Apply normalization to test set
+Test_normalized <- predict(preprocess_method, Test[, quantitative_vars])
+
+# Combine normalized quantitative variables with other predictors in the training and test sets
+Train_processed <- cbind(Train_normalized, Train[, -which(names(Train) %in% quantitative_vars)])
+Test_processed <- cbind(Test_normalized, Test[, -which(names(Test) %in% quantitative_vars)])
 ```
+
+In our mushroom classification project, we incorporated Support Vector Machine (SVM) modeling with probability estimates using Platt scaling. Unlike logistic regression and decision trees, SVM initially doesn't produce probabilities directly. However, by setting the probability parameter to TRUE during model fitting, we enabled SVM to provide probability estimates. This is crucial for understanding the confidence of our predictions. Leveraging Platt scaling, we obtained these estimates, allowing us to gauge the likelihood of a mushroom belonging to a particular class, enhancing the interpretability and reliability of our classification results.
+
+```{r}
+# Fit SVM model with probability estimates using Platt scaling
+svm_model <- svm(class_p ~ ., data = Train_processed, probability = TRUE)
+
+# Predict probabilities for the test set
+svm_probs <- attr(predict(svm_model, newdata = Test_processed, probability = TRUE), "probabilities")[,1]  # Probability of positive class
+```
+
+Finally, we can generate a preliminary accuracy score for this model using its hard classifications. Using a probability of 0.5 as our threshold, we can calculate the model's accuracy.
+
+```{r}
+# Convert probabilities to class predictions based on a threshold (e.g., 0.5)
+svm_class <- as.numeric(svm_probs > 0.5)
+
+# Calculate True Positives (TP), True Negatives (TN), False Positives (FP), False Negatives (FN)
+TP <- sum(svm_class == 1 & svm_class == Test_processed$class_p)
+TN <- sum(svm_class == 0 & svm_class == Test_processed$class_p)
+FP <- sum(svm_class == 1 & svm_class != Test_processed$class_p)
+FN <- sum(svm_class == 0 & svm_class != Test_processed$class_p)
+
+# Calculate accuracy
+svm.accuracy <- (TP + TN) / (TP + TN + FP + FN)
+
+svm.accuracy
+```
+
+Like our random forest model, the SVM model also has a very high accuracy score of 99.9% using a basic threshold of 0.5
 
 ## Model 4: Ensemble
 
-- can also discuss maybe only need one model versus ensemble
+In this code, we are attempting to implement a linear stacking model to improve the accuracy of our mushroom toxicity classification. It combines predictions from three base models (logistic regression, random forest, and support vector machine) in an effort to build an ensemble model that can hopefully provide even greater certainty to the classification. The stacking model is trained using logistic regression, and its predictions are evaluated for accuracy. This approach leverages the strengths of multiple models to create a more robust classification framework for mushroom foragers.
 
 ```{r}
-# model 4 code here
+# Create a new dataframe with predicted probabilities from base models and original features
+stacking_data <- cbind(lr.p_hat, rf.p_hat, svm_probs, Test_processed)
+
+# Train a linear model (e.g., logistic regression) using the predicted probabilities and original features
+stacking_model <- glm(class_p ~ lr.p_hat + rf.p_hat + svm_probs, data = stacking_data, family = binomial)
+
+summary(stacking_model)
+
+# Predict probabilities for the test set using the stacking model
+stacking_probs <- predict(stacking_model, newdata = stacking_data, type = "response")
+
+# Convert probabilities to class predictions based on a threshold (e.g., 0.5)
+stacking_class <- as.numeric(stacking_probs > 0.5)
+
+# Calculate accuracy
+TP <- sum(stacking_class == 1 & stacking_class == Test_processed$class_p)
+TN <- sum(stacking_class == 0 & stacking_class == Test_processed$class_p)
+FP <- sum(stacking_class == 1 & stacking_class != Test_processed$class_p)
+FN <- sum(stacking_class == 0 & stacking_class != Test_processed$class_p)
+
+en.accuracy <- (TP + TN) / (TP + TN + FP + FN)
+
+en.accuracy
+```
+
+Unsurprisingly, since the ensemble leveraged 2 very strong models (the random forest and the SVM models), it was abale to make strong predictions. The overall accuracy was slightly higher than any of models despite the inaccurate logistic regression. Moving forward we could see that the LR predictor is insignificant and would onyl to serve to add noise to predictions on unseen data thus it would not be included in the ensemble in the application setting.
+
+```{r}
+# Train a linear model (e.g., logistic regression) using the predicted probabilities and original features
+stacking_model <- glm(class_p ~ rf.p_hat + svm_probs, data = stacking_data, family = binomial)
+
+summary(stacking_model)
+
+# Predict probabilities for the test set using the stacking model
+stacking_probs <- predict(stacking_model, newdata = stacking_data, type = "response")
+
+# Convert probabilities to class predictions based on a threshold (e.g., 0.5)
+stacking_class <- as.numeric(stacking_probs > 0.5)
+
+# Calculate accuracy
+TP <- sum(stacking_class == 1 & stacking_class == Test_processed$class_p)
+TN <- sum(stacking_class == 0 & stacking_class == Test_processed$class_p)
+FP <- sum(stacking_class == 1 & stacking_class != Test_processed$class_p)
+FN <- sum(stacking_class == 0 & stacking_class != Test_processed$class_p)
+
+en.accuracy <- (TP + TN) / (TP + TN + FP + FN)
+
+en.accuracy
 ```
 
 # Model Evaluation
@@ -397,14 +489,14 @@ In the model development section, we conducted a preliminary analysis of the mod
 
 ```{r}
 accuracy.table = tibble(model = c("Logistic Regression",
-                                  "Random Forest"#,
-                                  #"Support Vector Machine",
-                                  #"Ensemble"
+                                  "Random Forest",
+                                  "Support Vector Machine",
+                                  "Ensemble"
                                   ),
                         accuracy = c(lr.accuracy,
-                                     rf.accuracy#,
-                                     #svm.accuracy,
-                                     #en.accuracy
+                                     rf.accuracy,
+                                     svm.accuracy,
+                                     en.accuracy
                                      ))
 
 accuracy.table
