@@ -240,7 +240,7 @@ for (column in num.features) {
 
 From here, we can fit a logistic regression model.
 
-```{r}
+```{r, echo=FALSE}
 fit_lr = glm(class_p ~ ., 
              family= 'binomial', 
              data= Train.transformed)
@@ -259,12 +259,51 @@ hist(lr.p_hat,
      border="pink",
      breaks = 30)
 ```
-As we can see above, the model does not produce many "middle ground" probability estimates of mushroom toxicity. The estimates are either very close to zero or very close to one. It is notable that the model predicts a lot more nontoxic classifications as opposed to toxic. Later in our model evaluation analysis, we will be able to see how effective this model is in predicting mushroom toxicity, especially in situations where the penalty of misclassification is high.
-
-Finally, we can generate a preliminary accuracy score for this model using its hard classifications. Using a probability of 0.5 as our threshold (the guessing average), we can calculate the model's accuracy.
+As we can see above, the model does not produce many "middle ground" probability estimates of mushroom toxicity. The estimates are almsost exclusively close to zero or with a couple very close to one. It is notable that the model predicts a lot more nontoxic classifications as opposed to toxic. This lack of ability to discriminate between poisonous and safe mushrooms makes the model virtually useless. Thus, we will try to reconstruct this model without transforming the quantitative predictors. Perhaps compressing the range of feature values excessively hampered the model's ability to discriminate.
 
 ```{r}
-lr.class = as.numeric(lr.p_hat > 0.5)
+fit_lr = glm(class_p ~ ., 
+             family= 'binomial', 
+             data= Train)
+
+lr.p_hat= predict(fit_lr, Test, type= 'response') # response is the point estimate of the probability
+
+hist(lr.p_hat,
+     main="Probability Estimates of Mushroom Toxicity",
+     xlab="Probability Estimate",
+     ylab = "Frequency",
+     col="blue",
+     border="pink",
+     breaks = 30)
+```
+
+Based on this histogram we can see a more balanced set of predictions. Although the model clearly skews towards predicting the mushroom as poisonous, there appears to be at least some discriminatory ability now. We will evaluate this in the context of our other models later.
+
+Next, we want to explore the feature importance of the variables in this model. Variables with larger coefficients are relied on the most for determining the probability of toxicity. A positive coefficent means the variable increases the likelihood the mushroom is poisonous, while a negative coefficient decreases the likelohood the mushroom is poisonous.
+
+```{r}
+# Extract coefficients from the fitted logistic regression model
+coefficients <- coef(fit_lr)
+
+# Create a data frame to store feature names and their corresponding coefficients
+feature_importance <- data.frame(
+  Feature = names(coefficients),
+  Coefficient = coefficients
+)
+
+# Sort the data frame by the absolute value of the coefficients to identify the most important features
+feature_importance <- feature_importance[order(abs(feature_importance$Coefficient), decreasing = TRUE),]
+
+# Display the feature importance
+print(feature_importance)
+```
+
+Finding the feature importance is important for the application of this model in the real world. Based on this model, mushroom foragers could use these coefficients to begin to estimate whether they believe a mushroom is poisonous or not. For example, we can see that if stem_color_f = 1 (the mushroom has no stem), then it drastically increases the likelihood the mushroom is poisonous according to this model.
+
+Finally, we can generate a preliminary accuracy score for this model using its hard classifications. Using a probability of 0.54 as our threshold (the guessing average), we can calculate the model's accuracy.
+
+```{r}
+lr.class = as.numeric(lr.p_hat > 0.54)
 
 TP = sum(lr.class == 1 & lr.class == Test$class_p)
 TN = sum(lr.class == 0 & lr.class == Test$class_p)
@@ -276,7 +315,7 @@ lr.accuracy = (TP + TN) / (TP + TN + FP + FN)
 
 lr.accuracy
 ```
-The model produces a preliminary accuracy of 0.47, which is a little lower than the guessing average of 0.5 for a binary classification problem. Further analysis will be conducted in the model evaluation section later in this report.
+The model produces a preliminary accuracy of 0.78, which is a greater than the guessing average of 0.54 for a binary classification problem. Further analysis will be conducted in the model evaluation section later in this report.
 
 ## Model 2: Random Forest
 
@@ -338,7 +377,8 @@ final.rf = ranger(class_p~ .,
                   num.trees = 500, # default
                   splitrule = "gini", # gini index
                   seed = 2021, # ensure same bagging for all mtry
-                  probability = TRUE) # to get probability estimates as the prediction value
+                  probability = TRUE, # to get probability estimates as the prediction value
+                  importance = "impurity") # to measure feature importance
 ```
 ```{r}
 rf.p_hat = predict(final.rf, Test, type = "response")
@@ -354,11 +394,28 @@ hist(rf.p_hat,
      border="pink",
      breaks = 30)
 ```
-As we can see above, the random forest model predicts relatively evenly between the two classes, with a few more "middle ground" probability estimates as compared to the logistic regression model.
+As we can see above, the random forest model predicts relatively evenly between the two classes, with apparently very little uncertainty based on the absence of "middle ground" estimates.
 
-Finally, we can generate a preliminary accuracy score for this model using its hard classifications. Using a probability of 0.5 as our threshold, we can calculate the model's accuracy.
+Feature importance in Random Forest models is determined based on how much each feature reduces impurity in the classification process. Impurity, often measured using metrics like Gini impurity, quantifies the disorder or uncertainty in a set of data points regarding their classification. Therefore, features with higher importance values indicate greater reductions in impurity, signifying their stronger influence on accurately categorizing mushrooms as poisonous or edible.
+
 ```{r}
-rf.class = as.numeric(rf.p_hat > 0.5)
+# Get feature importance
+importance_rf <- importance(final.rf)
+
+# Convert named numeric vector to data frame
+importance_rf_df <- data.frame(Feature = names(importance_rf), Importance = importance_rf)
+
+# Sort the data frame by Importance in descending order
+importance_rf_sorted <- importance_rf_df[order(importance_rf_df$Importance, decreasing = TRUE), ]
+
+# Print sorted feature importance
+print(importance_rf_sorted)
+```
+
+
+Finally, we can generate a preliminary accuracy score for this model using its hard classifications. Using a probability of 0.54 as our threshold, we can calculate the model's accuracy.
+```{r}
+rf.class = as.numeric(rf.p_hat > 0.54)
 
 TP = sum(rf.class == 1 & rf.class == Test$class_p)
 TN = sum(rf.class == 0 & rf.class == Test$class_p)
@@ -370,7 +427,7 @@ rf.accuracy = (TP + TN) / (TP + TN + FP + FN)
 
 rf.accuracy
 ```
-Using the test set, this model has an accuracy of 99.9%, which is an almost perfect accuracy score. 
+Using the test set, this model has an accuracy of 99.96%, which is an almost perfect accuracy score. 
 
 ## Model 3: Support Vector Machine
 
@@ -401,14 +458,37 @@ In our mushroom classification project, we incorporated Support Vector Machine (
 svm_model <- svm(class_p ~ ., data = Train_processed, probability = TRUE)
 
 # Predict probabilities for the test set
-svm_probs <- attr(predict(svm_model, newdata = Test_processed, probability = TRUE), "probabilities")[,1]  # Probability of positive class
+svm_probs <- attr(predict(svm_model, newdata = Test_processed, probability = TRUE), "probabilities")[,1]  
 ```
 
-Finally, we can generate a preliminary accuracy score for this model using its hard classifications. Using a probability of 0.5 as our threshold, we can calculate the model's accuracy.
+After developing the model we would like to examine the distribution of our predictions.
+
+```{r}
+hist(svm_probs,
+     main="Probability Estimates of Mushroom Toxicity",
+     xlab="Probability Estimate",
+     ylab = "Frequency",
+     col="blue",
+     border="pink",
+     breaks = 30)
+```
+
+Despite using Platt scoring to develop probabilities, we find the the SVM model is very confident in its predictions which results in a distribution which resembles binary classification.
+
+```{r}
+# Extract support vectors and coefficients
+support_vectors <- svm_model$SV
+coefficients <- t(svm_model$coefs) %*% svm_model$SV
+
+# Create a data frame with support vectors and coefficients
+support_vectors_and_coefficients <- data.frame(SupportVector = 1:nrow(support_vectors), Coefficient = coefficients)
+```
+
+We can generate a preliminary accuracy score for this model using its hard classifications. Using a probability of 0.54 as our threshold, we can calculate the model's accuracy.
 
 ```{r}
 # Convert probabilities to class predictions based on a threshold (e.g., 0.5)
-svm_class <- as.numeric(svm_probs > 0.5)
+svm_class <- as.numeric(svm_probs > 0.54)
 
 # Calculate True Positives (TP), True Negatives (TN), False Positives (FP), False Negatives (FN)
 TP <- sum(svm_class == 1 & svm_class == Test_processed$class_p)
@@ -422,7 +502,7 @@ svm.accuracy <- (TP + TN) / (TP + TN + FP + FN)
 svm.accuracy
 ```
 
-Like our random forest model, the SVM model also has a very high accuracy score of 99.9% using a basic threshold of 0.5
+Like our random forest model, the SVM model also has a very high accuracy score of 99.9% using a basic threshold of 0.54
 
 ## Model 4: Ensemble
 
@@ -441,7 +521,7 @@ summary(stacking_model)
 stacking_probs <- predict(stacking_model, newdata = stacking_data, type = "response")
 
 # Convert probabilities to class predictions based on a threshold (e.g., 0.5)
-stacking_class <- as.numeric(stacking_probs > 0.5)
+stacking_class <- as.numeric(stacking_probs > 0.54)
 
 # Calculate accuracy
 TP <- sum(stacking_class == 1 & stacking_class == Test_processed$class_p)
@@ -454,7 +534,7 @@ en.accuracy <- (TP + TN) / (TP + TN + FP + FN)
 en.accuracy
 ```
 
-Unsurprisingly, since the ensemble leveraged 2 very strong models (the random forest and the SVM models), it was abale to make strong predictions. The overall accuracy was slightly higher than any of models despite the inaccurate logistic regression. Moving forward we could see that the LR predictor is insignificant and would onyl to serve to add noise to predictions on unseen data thus it would not be included in the ensemble in the application setting.
+Unsurprisingly, since the ensemble leveraged 2 very strong models (the random forest and the SVM models), it was able to make strong predictions. The overall accuracy was the same as the extremely high RF model despite the less accurate logistic regression model. Moving forward we can see that the LR predictor is insignificant and may only add noise to predictions on unseen data thus it may be best to not include it in the ensemble in the application setting.
 
 ```{r}
 # Train a linear model (e.g., logistic regression) using the predicted probabilities and original features
@@ -466,7 +546,7 @@ summary(stacking_model)
 stacking_probs <- predict(stacking_model, newdata = stacking_data, type = "response")
 
 # Convert probabilities to class predictions based on a threshold (e.g., 0.5)
-stacking_class <- as.numeric(stacking_probs > 0.5)
+stacking_class <- as.numeric(stacking_probs > 0.54)
 
 # Calculate accuracy
 TP <- sum(stacking_class == 1 & stacking_class == Test_processed$class_p)
@@ -477,6 +557,16 @@ FN <- sum(stacking_class == 0 & stacking_class != Test_processed$class_p)
 en.accuracy <- (TP + TN) / (TP + TN + FP + FN)
 
 en.accuracy
+```
+
+```{r}
+hist(svm_probs,
+     main="Probability Estimates of Mushroom Toxicity",
+     xlab="Probability Estimate",
+     ylab = "Frequency",
+     col="blue",
+     border="pink",
+     breaks = 30)
 ```
 
 # Model Evaluation
@@ -502,7 +592,7 @@ accuracy.table = tibble(model = c("Logistic Regression",
 accuracy.table
 ```
 
-While accuracy is a nice preliminary analysis of the model's performance due to its simplicity and efficiency, it is a poor metric to use for more meaningful evaluation of the models. Accuracy does not account for the fact that there are different costs that exist depending on the type of mistake made in a given scenario. In our example, the cost of misclassifying a toxic mushroom can lead to death, whereas the cost of misclassifying a nontoxic mushroom is much less. Additionally, accuracy is unable to consider the nuances between different probability estimations, as it classifies a probability of 0.55 and 0.99 the same, given our threshold is 0.5. For these reasons, we need a more robust method to evaluate the models.
+While accuracy is a nice preliminary analysis of the model's performance due to its simplicity and efficiency, it is a poor metric to use for more meaningful evaluation of the models. Accuracy does not account for the fact that there are different costs that exist depending on the type of mistake made in a given scenario. In our example, the cost of misclassifying a toxic mushroom can lead to death, whereas the cost of misclassifying a nontoxic mushroom is much less. Additionally, accuracy is unable to consider the nuances between different probability estimations, as it classifies a probability of 0.55 and 0.99 the same, given our threshold is 0.54. For these reasons, we need a more robust method to evaluate the models.
 
 ## Cost
 
@@ -558,9 +648,15 @@ ggplot() +
        x = "threshold",
        y = "Cost")
 ```
-Above is the cost analysis of the logistic regression model. The estimated optimal threshold is indicated by the orange point, while the theoretical optimal threshold is indicated by the purple line. Since the logistic regression model is biased towards predicting mushrooms are nontoxic as shown when we were building the model, the optimal threshold is at zero because it minimizes the number of false negatives that occur. In this case, the number of false negatives is minimized to zero because all of the mushrooms in the test set are classified as toxic.
+Above is the cost analysis of the logistic regression model. The estimated optimal threshold is indicated by the orange point, while the theoretical optimal threshold is indicated by the purple line. Here we can see that to minimize costs our optimal threshold is actually lower than the theoretically optimal threshold of .09.
 
-This model is turning out to be a pretty poor model in practice. Because of the model's poor predictive power, our cost analysis is essentially telling us that the optimal decision for foragers is to never eat a foraged mushroom because it cannot tell if the mushroom is poisonous or not. If there are alternative models that produce a better performance than this model, they should indisputably be pursued over this model.
+```{r}
+lr.perf[which.min(lr.costs), ]
+
+min(lr.costs)
+```
+
+This model turns out to be a relatively poor model in practice, especially compared to our other models. However, it is able to somewhat effectively reduce the the number of costly false negatives by setting a threshold of .05 which is indeed lower than our theoretical ideal threshold. When you factor in the the 14 false negatives and the 2,946 false positives the overall cost amounts to 3,086.
 
 *Random Forest:*
 ```{r}
@@ -584,8 +680,7 @@ Above is the cost analysis of the random forest model. We can see in this plot t
 
 ```{r}
 rf.perf[which.min(rf.costs), ]
-```
-```{r}
+
 min(rf.costs)
 ```
 At a threshold of 0.266, the cost is minimized at a value of 11 with 0 false negatives and 11 false positives. This performance is ideal, as it eliminates the costly false negatives and minimizes the number of false positives. In practice this performance is also ideal because there are no times that a toxic mushroom is incorrectly classified as nontoxic and accidentally ingested by a forager.
@@ -646,7 +741,7 @@ en.perf[which.min(en.costs), ]
 min(en.costs)
 ```
 
-At a threshold of 0.053 for the ensemble model, the cost can be reduced all the way to a value of 2 with 0 false negatives and 2 false positives. This performance is the strongest yet with 0 of the potentially deadly false negatives and a mere 2 false positives. This shows that the ensemble model is using both of our stronger models (RF and SVM) to build a superior classification model. Granted, there is a risk of overfiting since the ensemble model was trained on the test data since we first had to fit the component models on the training data. But if we can assume that our test data is representative of mushroom population then the ensemble model is valuable.
+At a threshold of 0.053 for the ensemble model, the cost can be reduced all the way to a value of 2 with 0 false negatives and 2 false positives. This performance is the strongest yet with 0 of the potentially deadly false negatives and a mere 2 false positives. This shows that the ensemble model is using both of our stronger models (RF and SVM) to build a superior classification model. This demonstrates the potential value of an ensemble model. Although it had the same baseline accuracy as the RF model, when applied ti a practical setting with costs considered it showed its potential merit being greater than any one model. Granted, there is a risk of overfiting since the ensemble model was trained on the test data since we first had to fit the component models on the training data. But if we can assume that our test data is representative of mushroom population then the ensemble model is valuable.
 
 # Discussion
 
