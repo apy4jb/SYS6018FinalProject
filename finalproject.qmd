@@ -503,7 +503,7 @@ accuracy.table
 ```
 COMPARISON HERE
 
-While accuracy is a nice preliminary analysis of the model's performance due to its simplicity and efficiency, it is a poor metric to use for more meaningful evaluation of the models. Accuracy does not account for the fact that there are different costs that exist depending on the type of mistake made in a given scenario. In our example, the cost of misclassifying a toxic mushroom can lead to death, whereas the cost of misclassifying a nontoxic mushroom is much less. Additionally, accuracy is unable to consider the nuances between different probability estimatations, as it classifies a probability of 0.55 and 0.99 the same, given our threshold is 0.5. For these reasons, we need a more robust method to evaluate the models.
+While accuracy is a nice preliminary analysis of the model's performance due to its simplicity and efficiency, it is a poor metric to use for more meaningful evaluation of the models. Accuracy does not account for the fact that there are different costs that exist depending on the type of mistake made in a given scenario. In our example, the cost of misclassifying a toxic mushroom can lead to death, whereas the cost of misclassifying a nontoxic mushroom is much less. Additionally, accuracy is unable to consider the nuances between different probability estimations, as it classifies a probability of 0.55 and 0.99 the same, given our threshold is 0.5. For these reasons, we need a more robust method to evaluate the models.
 
 ## Cost
 
@@ -517,50 +517,85 @@ Using these estimated costs, we can conduct a misclassification analysis for eac
 # thres: vector of thresholds at which to calculate metric.
 # Note: decision is 1 if score > thres, 0 if score <= thres.
 perf_table <- function(truth, score, thres){
-  x = c(-Inf, thres, Inf) %>% unique() %>% sort() # expand and clean thresholds
-  tibble(truth, score) %>%
-    # create groups by threshold
-    mutate(
-      bin = findInterval(score, x, left.open = TRUE),
-      val = x[bin+1]
-    ) %>%
-    # counts by group/threshold
-    group_by(val) %>%
-    summarize(n = n(), n.1 = sum(truth), n.0 = n-n.1) %>%
-    ungroup() %>%
-    complete(val = thres, fill = list(n=0L, n.1=0L, n.0 = 0L)) %>%
+  x = thres %>% unique() %>% sort()
+  
+  RESULTS = tibble()
+  
+  for (threshold in x) {
+    class = as.numeric(score > threshold)
     
-    # calculate metrics
-    arrange(val) %>%
-    mutate(
-      TN = cumsum(n.0), # True negatives
-      FN = cumsum(n.1), # False negatives
-      TP = sum(n.1) - FN, # True positives
-      FP = sum(n.0) - TN, # False positives
-      TPR = TP/sum(n.1), # True positive rate (TP / Positives)
-      FPR = FP/sum(n.0) # False positive rate (FP / Negatives)
-    ) %>%
-    # drop values outside of stated thresholds
-    filter(val %in% thres) %>%
-    # retain relevant metrics
-    select(-n, -n.1, -n.0, score = val)
+    TP = sum(class == 1 & class == truth)
+    TN = sum(class == 0 & class == truth)
+    
+    FP = sum(class == 1 & class != truth)
+    FN = sum(class == 0 & class != truth)
+    
+    out = tibble(threshold, TP, TN, FP, FN)
+    
+    RESULTS = bind_rows(RESULTS, out)
+  }
+  
+  return(RESULTS)
 }
 ```
+
+*Logistic Regression:*
 ```{r}
 thresholds = seq(0, 1, length = 1000)
-perf = perf_table(truth = as.numeric(Test$class_p), score = lr.p_hat, thres = thresholds) %>%
-  mutate(p_hat = score, gamma_hat = log(p_hat) - log(1-p_hat), .before=1) %>%
-  select(-score)
+lr.perf = perf_table(truth = Test$class_p, score = lr.p_hat, thres = thresholds)
+head(lr.perf)
 ```
+```{r}
+lr.costs = 1*lr.perf$FP + 10*lr.perf$FN
 
+min.idx = which.min(lr.costs)
 
+ggplot() +
+  geom_line(aes(x= lr.perf$threshold, y= lr.costs)) +
+  geom_vline(xintercept = 1 / (1 + 10), col = "purple") +
+  geom_point(aes(x=lr.perf$threshold[min.idx], 
+                 y= min(lr.costs)), colour="orange") + 
+  labs(title = "Logistic Regression: Cost of FP = 1 and FN = 10",
+       x = "threshold",
+       y = "Cost")
+```
+Above is the cost analysis of the logistic regression model. The estimated optimal threshold is indicated by the orange point, while the theoretical optimal threshold is indicated by the purple line. Since the logistic regression model is biased towards predicting mushrooms are nontoxic as shown when we were building the model, the optimal threshold is at zero because it minimizes the number of false negatives that occur. In this case, the number of false negatives is minimized to zero because all of the mushrooms in the test set are classified as toxic.
 
+This model is turning out to be a pretty poor model in practice. Because of the model's poor predictive power, our cost analysis is essentially telling us that the optimal decision for foragers is to never eat a foraged mushroom because it cannot tell if the mushroom is poisonous or not. If there are alternative models that produce a better performance than this model, they should indisputably be pursued over this model.
+
+*Random Forest:*
+```{r}
+thresholds = seq(0, 1, length = 1000)
+rf.perf = perf_table(truth = Test$class_p, score = rf.p_hat, thres = thresholds)
+
+rf.costs = 1*rf.perf$FP + 10*rf.perf$FN
+
+min.idx = which.min(rf.costs)
+
+ggplot() +
+  geom_line(aes(x= rf.perf$threshold, y= rf.costs)) +
+  geom_vline(xintercept = 1 / (1 + 10), col = "purple") +
+  geom_point(aes(x=rf.perf$threshold[min.idx], 
+                 y= min(rf.costs)), colour="orange") +
+  labs(title = "Random Forest: Cost of FP = 1 and FN = 10",
+       x = "threshold",
+       y = "Cost")
+```
+Above is the cost analysis of the random forest model. We can see in this plot the optimal estimated threshold is notably higher than the theoretical threshold. Given we have sufficient data for our model, the estimated threshold is preferred over the theoretical one.
+
+```{r}
+rf.perf[which.min(rf.costs), ]
+```
+```{r}
+min(rf.costs)
+```
+At a threshold of 0.266, the cost is minimized at a value of 11 with 0 false negatives and 11 false positives. This performance is ideal, as it eliminates the costly false negatives and minimizes the number of false positives. In practice this performance is also ideal because there are no times that a toxic mushroom is incorrectly classified as nontoxic and accidentally ingested by a forager.
 
 # Discussion
 
-Discuss results here (maybe can be combined with Model Evaluation)...
+Discuss results here...
 
-Do you think a hard classification or probability/score is better for this scenario? probability is better
+Do you think a hard classification or probability/score is better for this scenario? -> probability is better! people can make their own judgements on what probability they are comfortable with, foragers prone to more risky behavior could have a lower FN cost and therefore be more willing to take their chances, there are plenty of mushrooms that are deemed toxic but will ultimately only give you a stomachache so the situations are not necessarily life or death
 
 # Conclusion
 
@@ -569,3 +604,5 @@ Conclusions here...
 # Limitations
 
 Maybe talk about limitations?? here...
+
+computational power was a limitation for the random forest because it takes a long time to build the model
