@@ -71,12 +71,6 @@ Our data set has 61,069 instances of 21 variables.
 **habitat**: Habitat where the mushroom grows, categorized as grasses, leaves, meadows, paths, heaths, urban, waste, or woods (categorical).
 **season**: Season in which the mushroom is typically found, categorized as spring, summer, autumn, or winter (categorical).
 
-
-```{r}
-colSums(is.na(df))
-```
-We can confirm there are no missing values in the dataset, thus we do not need to remove rows or impute any values
-
 # Data Cleaning
 
 ## Missing Values
