@@ -411,7 +411,7 @@ accuracy.table
 ```
 COMPARISON HERE
 
-While accuracy is a nice preliminary analysis of the model's performance due to its simplicity and efficiency, it is a poor metric to use for more meaningful evaluation of the models. Accuracy does not account for the fact that there are different costs that exist depending on the type of mistake made in a given scenario. In our example, the cost of misclassifying a toxic mushroom can lead to death, whereas the cost of misclassifying a nontoxic mushroom is much less. Additionally, accuracy is unable to consider the nuances between different probability estimatations, as it classifies a probability of 0.55 and 0.99 the same, given our threshold is 0.5. For these reasons, we need a more robust method to evaluate the models.
+While accuracy is a nice preliminary analysis of the model's performance due to its simplicity and efficiency, it is a poor metric to use for more meaningful evaluation of the models. Accuracy does not account for the fact that there are different costs that exist depending on the type of mistake made in a given scenario. In our example, the cost of misclassifying a toxic mushroom can lead to death, whereas the cost of misclassifying a nontoxic mushroom is much less. Additionally, accuracy is unable to consider the nuances between different probability estimations, as it classifies a probability of 0.55 and 0.99 the same, given our threshold is 0.5. For these reasons, we need a more robust method to evaluate the models.
 
 ## Cost
 
