@@ -294,6 +294,8 @@ print(feature_importance)
 
 Finding the feature importance is important for the application of this model in the real world. Based on this model, mushroom foragers could use these coefficients to begin to estimate whether they believe a mushroom is poisonous or not. For example, we can see that if stem_color_f = 1 (the mushroom has no stem), then it drastically increases the likelihood the mushroom is poisonous according to this model.
 
+The features with the greatest importance in the logistic regression model were stem color and cap shape.
+
 Finally, we can generate a preliminary accuracy score for this model using its hard classifications. Using a probability of 0.54 as our threshold (the guessing average), we can calculate the model's accuracy.
 
 ```{r}
@@ -406,6 +408,8 @@ importance_rf_sorted <- importance_rf_df[order(importance_rf_df$Importance, decr
 print(importance_rf_sorted)
 ```
 
+Interestingly, our 3 quantitative predictors were the most important features for the random forest decision trees. This could be due to there being many different levels which allow it to discriminate well on our training data. We would want to ensure it is not overfitting moving forward.
+
 Finally, we can generate a preliminary accuracy score for this model using its hard classifications. Using a probability of 0.54 as our threshold, we can calculate the model's accuracy.
 ```{r}
 rf.class = as.numeric(rf.p_hat > 0.54)
@@ -475,7 +479,10 @@ coefficients <- t(svm_model$coefs) %*% svm_model$SV
 
 # Create a data frame with support vectors and coefficients
 support_vectors_and_coefficients <- data.frame(SupportVector = 1:nrow(support_vectors), Coefficient = coefficients)
+head(support_vectors_and_coefficients, 1)
 ```
+
+After analyzing the support vectors and their coefficients we can look at their magnitude and sign to gain insight. The greater the coefficient the greater the importance of the variable in the SVM model. A positive sign increases the likelihood of a mushroom being poisonous and a negative sign decreases the likelihood of a mushroom being positive. For the SVM model some of the most importsnt features were habitat, stem color, cap color, and gill color. 
 
 We can generate a preliminary accuracy score for this model using its hard classifications. Using a probability of 0.54 as our threshold, we can calculate the model's accuracy.
 
@@ -553,7 +560,7 @@ en.accuracy
 ```
 
 ```{r}
-hist(svm_probs,
+hist(stacking_probs,
      main="Probability Estimates of Mushroom Toxicity",
      xlab="Probability Estimate",
      ylab = "Frequency",
@@ -738,18 +745,27 @@ At a threshold of 0.053 for the ensemble model, the cost can be reduced all the 
 
 # Discussion
 
-Discuss results here...
-
 Do you think a hard classification or probability/score is better for this scenario? -> probability is better! people can make their own judgments on what probability they are comfortable with, foragers prone to more risky behavior could have a lower FN cost and therefore be more willing to take their chances, there are plenty of mushrooms that are deemed toxic but will ultimately only give you a stomachache so the situations are not necessarily life or death
+
+In evaluating various machine learning models such as logistic regression, random forest, and support vector machine, it became evident that ensemble models, such as stacking, outperformed individual algorithms in terms of accuracy and cost analysis. This finding suggests that combining the strengths of different algorithms can lead to improved performance in classifying mushroom toxicity.
+
+Analyzing the coefficients of logistic regression or support vectors or the feature importances of tree-based models like random forest revealed the most influential features in predicting mushroom toxicity. Notably, features related to cap shape, odor, gill size, and habitat were found to have significant importance in distinguishing between toxic and non-toxic mushrooms. Noting the most important features is useful for foragers, so they can direct their attention to the most important features.
+
+Experimenting with different classification thresholds allowed for the analysis of the trade-off between false positives and false negatives. For instance, lowering the threshold might reduce the risk of mistakenly classifying toxic mushrooms as safe (false negatives), but it could increase the likelihood of incorrectly labeling safe mushrooms as toxic (false positives). Finding the optimal threshold involves considering the consequences of misclassification in the context of mushroom foraging safety. This is an important consideration for foragers who may have different risk tolerances. In practice, a hunter and gatherer who subsists this way may have a greater cost for false positives since he doesn't have as many alternatives, but a hobbyist may have a lower cost for false positives, because they likely have alternatives readily available at home.
 
 # Conclusion
 
 *Ensemble Model Superiority:* The ensemble model, combining the strengths of random forest and support vector machine models, outperformed individual models in minimizing the cost of misclassification, demonstrating the potential value of ensemble methods in mushroom toxicity classification.
+
 *Cost-Aware Thresholding:* Implementing cost-aware thresholding, where the threshold for classifying toxic mushrooms is adjusted based on the costs associated with false positives and false negatives, significantly improved the practical utility of the models, especially in scenarios where the cost of misclassification is asymmetric.
+
 *Probability Estimates for Flexibility:* Probability estimates provide greater flexibility for decision-making in real-world scenarios, allowing foragers to make informed decisions based on their risk tolerance. This approach acknowledges the uncertainty inherent in mushroom classification and empowers foragers to assess the probability of toxicity according to their own preferences and risk factors.
 
 # Limitations
 
-Maybe talk about limitations?? here...
-
-computational power was a limitation for the random forest because it takes a long time to build the model
+*Missing Data Handling:* Removing columns with a large percentage of missing values may lead to loss of potentially valuable information, especially if those features could have been useful for classification.
+*Normalization Assumptions:* Normalizing quantitative variables assumes that they have a linear relationship with the target variable, which may not always hold true.
+*Model Selection:* Although logistic regression, random forest, support vector machine, and ensemble models were implemented, other models like gradient boosting or neural networks could also be explored for potentially better performance.
+*Threshold Selection:* The choice of threshold for classification affects the model's performance, and selecting an optimal threshold can be challenging, especially considering the trade-off between false positives and false negatives.
+*Generalizability:* The performance of the models may vary when applied to different datasets or mushroom populations, and their generalizability to real-world foraging scenarios needs to be validated.
+*Assumptions of Cost Estimation:* The assumed costs of false positives and false negatives may not accurately reflect the real-world consequences of misclassification in mushroom foraging.
