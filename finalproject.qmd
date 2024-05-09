@@ -31,7 +31,7 @@ This report aims to provide foragers a model-based method of determining the pro
 # Load Data
 
 ```{r, include = F}
-df = read_csv2("secondary_data.csv", col_names = TRUE)
+df = read_csv2("/Users/mitchellwhalen/Desktop/GitHub/SYS6018FinalProject/secondary_data.csv", col_names = TRUE)
 ```
 
 ```{r}
@@ -289,7 +289,7 @@ feature_importance <- data.frame(
 feature_importance <- feature_importance[order(abs(feature_importance$Coefficient), decreasing = TRUE),]
 
 # Display the feature importance
-print(feature_importance)
+head(feature_importance, 10)
 ```
 
 Finding the feature importance is important for the application of this model in the real world. Based on this model, mushroom foragers could use these coefficients to begin to estimate whether they believe a mushroom is poisonous or not. For example, we can see that if stem_color_f = 1 (the mushroom has no stem), then it drastically increases the likelihood the mushroom is poisonous according to this model.
@@ -405,7 +405,7 @@ importance_rf_df <- data.frame(Feature = names(importance_rf), Importance = impo
 importance_rf_sorted <- importance_rf_df[order(importance_rf_df$Importance, decreasing = TRUE), ]
 
 # Print sorted feature importance
-print(importance_rf_sorted)
+head(importance_rf_sorted, 10)
 ```
 
 Interestingly, our 3 quantitative predictors were the most important features for the random forest decision trees. This could be due to there being many different levels which allow it to discriminate well on our training data. We would want to ensure it is not overfitting moving forward.
@@ -764,8 +764,13 @@ Experimenting with different classification thresholds allowed for the analysis 
 # Limitations
 
 *Missing Data Handling:* Removing columns with a large percentage of missing values may lead to loss of potentially valuable information, especially if those features could have been useful for classification.
+
 *Normalization Assumptions:* Normalizing quantitative variables assumes that they have a linear relationship with the target variable, which may not always hold true.
+
 *Model Selection:* Although logistic regression, random forest, support vector machine, and ensemble models were implemented, other models like gradient boosting or neural networks could also be explored for potentially better performance.
+
 *Threshold Selection:* The choice of threshold for classification affects the model's performance, and selecting an optimal threshold can be challenging, especially considering the trade-off between false positives and false negatives.
+
 *Generalizability:* The performance of the models may vary when applied to different datasets or mushroom populations, and their generalizability to real-world foraging scenarios needs to be validated.
+
 *Assumptions of Cost Estimation:* The assumed costs of false positives and false negatives may not accurately reflect the real-world consequences of misclassification in mushroom foraging.
