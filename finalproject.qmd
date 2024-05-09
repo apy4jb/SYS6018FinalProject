@@ -406,7 +406,6 @@ importance_rf_sorted <- importance_rf_df[order(importance_rf_df$Importance, decr
 print(importance_rf_sorted)
 ```
 
-
 Finally, we can generate a preliminary accuracy score for this model using its hard classifications. Using a probability of 0.54 as our threshold, we can calculate the model's accuracy.
 ```{r}
 rf.class = as.numeric(rf.p_hat > 0.54)
@@ -741,11 +740,13 @@ At a threshold of 0.053 for the ensemble model, the cost can be reduced all the 
 
 Discuss results here...
 
-Do you think a hard classification or probability/score is better for this scenario? -> probability is better! people can make their own judgements on what probability they are comfortable with, foragers prone to more risky behavior could have a lower FN cost and therefore be more willing to take their chances, there are plenty of mushrooms that are deemed toxic but will ultimately only give you a stomachache so the situations are not necessarily life or death
+Do you think a hard classification or probability/score is better for this scenario? -> probability is better! people can make their own judgments on what probability they are comfortable with, foragers prone to more risky behavior could have a lower FN cost and therefore be more willing to take their chances, there are plenty of mushrooms that are deemed toxic but will ultimately only give you a stomachache so the situations are not necessarily life or death
 
 # Conclusion
 
-Conclusions here...
+*Ensemble Model Superiority:* The ensemble model, combining the strengths of random forest and support vector machine models, outperformed individual models in minimizing the cost of misclassification, demonstrating the potential value of ensemble methods in mushroom toxicity classification.
+*Cost-Aware Thresholding:* Implementing cost-aware thresholding, where the threshold for classifying toxic mushrooms is adjusted based on the costs associated with false positives and false negatives, significantly improved the practical utility of the models, especially in scenarios where the cost of misclassification is asymmetric.
+*Probability Estimates for Flexibility:* Probability estimates provide greater flexibility for decision-making in real-world scenarios, allowing foragers to make informed decisions based on their risk tolerance. This approach acknowledges the uncertainty inherent in mushroom classification and empowers foragers to assess the probability of toxicity according to their own preferences and risk factors.
 
 # Limitations
 
