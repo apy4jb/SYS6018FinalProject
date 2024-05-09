@@ -745,7 +745,7 @@ At a threshold of 0.053 for the ensemble model, the cost can be reduced all the 
 
 # Discussion
 
-Do you think a hard classification or probability/score is better for this scenario? -> probability is better! people can make their own judgments on what probability they are comfortable with, foragers prone to more risky behavior could have a lower FN cost and therefore be more willing to take their chances, there are plenty of mushrooms that are deemed toxic but will ultimately only give you a stomachache so the situations are not necessarily life or death
+For our scenario, using probability estimations is better than hard classification. Foragers can make their own judgments on what probability of toxicity they are comfortable with, as foragers prone to more risky behavior could have a lower FN cost and therefore be more willing to take their chances. There are plenty of mushrooms that are deemed toxic but will ultimately only cause a stomachache, so situations are not necessarily life or death and foragers' risk tolerance can reflect this as well.
 
 In evaluating various machine learning models such as logistic regression, random forest, and support vector machine, it became evident that ensemble models, such as stacking, outperformed individual algorithms in terms of accuracy and cost analysis. This finding suggests that combining the strengths of different algorithms can lead to improved performance in classifying mushroom toxicity.
 
